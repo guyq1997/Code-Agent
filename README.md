@@ -15,3 +15,4 @@ This is a simple graphical tool to browse Python repositories or any directory s
 pip install -r requirements.txt
 
 3. Run the main application:
+python main.py

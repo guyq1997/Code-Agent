@@ -1,25 +1,17 @@
-# Django ChatGPT Auto Coder
+# Python Repository Browser
 
-This package helps you automate code generation and file modification using ChatGPT for Django projects.
+This is a simple graphical tool to browse Python repositories or any directory structure on your computer.
 
-## Setup
+## Features:
+- Select a directory to browse.
+- Display all files and subdirectories.
+- Navigate through directories.
+- Type prompts related to the selected file in the input area.
 
-1. Clone the repository:
-    ```bash
-    git clone <your-repo-url>
-    ```
+## How to Run:
 
-2. Install the package:
-    ```bash
-    pip install .
-    ```
+1. Clone the repository.
+2. Install dependencies using:
+pip install -r requirements.txt
 
-3. Set environment variables:
-    - `PROJECT_DIR`: The root directory of your Django project.
-    - `OPENAI_API_KEY`: Your OpenAI API key for interacting with ChatGPT.
-
-## Usage
-
-Run the program using:
-```bash
-autocoder
+3. Run the main application:

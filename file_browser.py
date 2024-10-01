@@ -3,6 +3,7 @@ import os
 class FileBrowser:
     def __init__(self):
         self.current_dir = os.getcwd()
+        self.root_dir = None
 
     def list_files(self, directory=None):
         """
@@ -33,3 +34,10 @@ class FileBrowser:
         """
         self.current_dir = os.path.dirname(self.current_dir)
         return self.list_files()
+    
+    def set_root_directory(self, directory):
+        """
+        Set the root work directory when the user selects a project.
+        """
+        self.root_dir = directory
+        self.current_dir = directory  # Also set the current directory to the root initially

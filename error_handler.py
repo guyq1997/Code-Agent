@@ -42,16 +42,38 @@ class ErrorHandler:
             # Finalize the current code without retrying
             self.finalize_code()
 
-    def finalize_code(self):
+
+    def finalize_code(self): 
         confirm = messagebox.askyesno("Finalize", "Do you want to paste the generated code into the selected file?")
         if confirm:
             selected_file_path = os.path.join(self.app_gui.file_browser.current_dir, self.app_gui.current_selection)
-            review_file_path = os.path.join(self.app_gui.file_browser.current_dir, "review_code.py")
 
-            with open(review_file_path, "r") as review_file:
-                generated_code = review_file.read()
+            # Infer the file extension from the selected file
+            _, file_extension = os.path.splitext(self.app_gui.current_selection)
+            file_extension = file_extension.lower()  # Handle case sensitivity
 
-            with open(selected_file_path, "w") as selected_file:
-                selected_file.write(generated_code)
+            # Determine the review file path based on the selected file type
+            if file_extension == ".py":
+                review_file_name = "review_code.py"
+            elif file_extension == ".html":
+                review_file_name = "review_code.html"
+            elif file_extension == ".css":
+                review_file_name = "review_code.css"
+            else:
+                messagebox.showerror("Error", "Unsupported file format. Only .py, .html, and .css are supported.")
+                return
 
-            messagebox.showinfo("Success", f"Code has been pasted into {self.app_gui.current_selection}!")
+            review_file_path = os.path.join(self.app_gui.file_browser.current_dir, review_file_name)
+            # Read from the appropriate review file and write to the selected file
+
+            try:
+                with open(review_file_path, "r") as review_file:
+                    generated_code = review_file.read()
+
+                with open(selected_file_path, "w") as selected_file:
+                    selected_file.write(generated_code)
+
+                messagebox.showinfo("Success", f"Code has been pasted into {self.app_gui.current_selection}!")
+
+            except FileNotFoundError:
+                messagebox.showerror("Error", f"Review file '{review_file_name}' not found. Please generate code first.")

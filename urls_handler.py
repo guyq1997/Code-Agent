@@ -10,7 +10,7 @@ class URLHandler:
         """
         This method is triggered when views.py is selected. It checks for models.py and handles prompt creation.
         """
-        project_directory = self.app_gui.file_browser.current_dir
+        project_directory = self.app_gui.file_browser.root_dir
         models_file = os.path.join(project_directory, "models.py")
         views_file = os.path.join(project_directory, "views.py")
 

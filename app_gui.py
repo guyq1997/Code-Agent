@@ -7,6 +7,7 @@ from error_handler import ErrorHandler
 from views_handler import ViewsHandler  # Import the new ViewsHandler
 from models_handler import ModelsHandler # Import the new ViewsHandler
 from urls_handler import URLHandler
+from html_handler import HTMLHandler
 
 class AppGUI:
 
@@ -20,7 +21,8 @@ class AppGUI:
         self.error_handler = ErrorHandler(self)
         self.views_handler = ViewsHandler(self)  # Instantiate the ViewsHandler
         self.models_handler = ModelsHandler(self)  # Instantiate the ViewsHandler
-        self.url_handler = URLHandler(self)
+        self.urls_handler = URLHandler(self)
+        self.html_handler = HTMLHandler(self)
 
         self.setup_fonts()
         self.setup_ui()
@@ -65,7 +67,7 @@ class AppGUI:
         self.predefined_prompt_label = tk.Label(self.main_frame, text="Pre-defined Prompt:", anchor="w")
         self.predefined_prompt_label.pack(anchor=tk.NW, padx=5, pady=5)
 
-        self.predefined_prompt = tk.Text(self.main_frame, wrap=tk.WORD, width=120, height=20, state="disabled", bg="lightgrey", font=self.input_font)
+        self.predefined_prompt = scrolledtext.ScrolledText(self.main_frame, wrap=tk.WORD, width=120, height=20, state="disabled", bg="lightgrey", font=self.input_font)
         self.predefined_prompt.pack(fill=tk.X,padx=10, pady=5)
 
         self.input_text = tk.Label(self.main_frame, text="Type your prompt below:")
@@ -78,8 +80,13 @@ class AppGUI:
         self.submit_button.pack(padx=5, pady=5)
 
     def choose_directory(self):
+        """
+        Let the user select a directory and update the file list.
+        Also, set this as the root work directory in the FileBrowser.
+        """
         directory = filedialog.askdirectory()
         if directory:
+            self.file_browser.set_root_directory(directory)  # Set the root work directory
             self.update_file_list(directory)
 
     def update_file_list(self, directory):
@@ -116,7 +123,9 @@ class AppGUI:
         elif self.current_selection == "models.py":
             preprompt_text = self.models_handler.handle_models_file()
         elif self.current_selection == "urls.py":
-            preprompt_text = self.url_handler.handle_urls_file()
+            preprompt_text = self.urls_handler.handle_urls_file()
+        elif self.current_selection.endswith(".html"):
+            preprompt_text = self.html_handler.handle_html_file()
 
         preprompt_text += "[Type the requirements in the following Input Area]"
        # Check if the selected file has existing content
@@ -150,17 +159,21 @@ class AppGUI:
         if not self.current_selection:
             messagebox.showerror("Error", "No file selected!")
             return
-        
-        # Check if the selected file is views.py
+
+        # Initialize the prompt with the handler for the selected file
         if self.current_selection == "views.py":
             prompt_text = self.views_handler.handle_views_file()
-            
         elif self.current_selection == "models.py":
             prompt_text = self.models_handler.handle_models_file()
         elif self.current_selection == "urls.py":
-            prompt_text = self.url_handler.handle_urls_file()
+            prompt_text = self.urls_handler.handle_urls_file()
+        elif self.current_selection.endswith(".html"):
+            prompt_text = self.html_handler.handle_html_file()
+        else:
+            messagebox.showerror("Error", "Unsupported file type!")
+            return
 
-
+        # Append the input text to the prompt
         prompt_text += input_text
 
         # Check if the selected file has existing content
@@ -175,10 +188,55 @@ class AppGUI:
 
         # Call OpenAI API and get the response with the modified prompt
         code_response = self.openai_client.send_to_openai(prompt_text)
-        python_code = self.openai_client.extract_python_code(code_response)
 
-        # Create a test environment with the generated code
-        self.file_handler.create_review_environment(python_code)
+        # Extract the appropriate code based on the file type
+        if self.current_selection.endswith(".py"):
+            try:
+                # Extract Python code
+                extracted_code = self.openai_client.extract_python_code(code_response)
 
-        # Run the generated code and handle errors
-        self.file_handler.run_and_test_code(self.error_handler)
+                # Create a test environment with the generated code
+                self.file_handler.create_review_environment(extracted_code,file_type="py")
+
+                # Run the generated code and handle errors
+                self.file_handler.run_and_test_code(self.error_handler)
+            except:
+                messagebox.showerror("Error", "No python code extracted from the response!")
+
+        elif self.current_selection.endswith(".html"):
+            try:
+                # Extract HTML code
+                extracted_code = self.openai_client.extract_html_code(code_response)
+                self.file_handler.create_review_environment(extracted_code,file_type="html")
+                self.file_handler.run_and_test_code(self.error_handler)
+            except:
+                messagebox.showerror("Error", "No html code extracted from the response!")
+
+            try:
+                html_file = self.current_selection
+                extracted_css_code = self.openai_client.extract_css_code(code_response)
+                self.file_handler.create_review_environment(extracted_css_code,file_type="css")
+                self.current_selection = os.path.join(self.file_browser.root_dir , "static/css/styles.css")
+                self.file_handler.run_and_test_code(self.error_handler)
+                self.current_selection = html_file
+            except:
+                messagebox.showerror("Error", "No CSS code extracted from the response! (No CSS code changes needed for this requirenment on html)")
+
+
+        elif self.current_selection.endswith(".css"):
+            try:
+                # Extract CSS code
+                extracted_code = self.openai_client.extract_css_code(code_response)
+
+                # Create a test environment with the generated code
+                self.file_handler.create_review_environment(extracted_code,file_type="css")
+
+                # Run the generated code and handle errors
+                self.file_handler.run_and_test_code(self.error_handler)
+            except:
+                messagebox.showerror("Error", "No python code extracted from the response!")
+
+        else:
+            messagebox.showerror("Error", "Unsupported file type for code extraction!")
+            return
+

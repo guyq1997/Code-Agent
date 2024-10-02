@@ -1,4 +1,4 @@
-# Django Prompt Agent
+# Django Prompt Asistant
 
 This is a simple graphical tool to generate and send django prompt automatically to OpenAI API. It also automatically pastes the code response into the selected file.
 

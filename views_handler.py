@@ -10,7 +10,7 @@ class ViewsHandler:
         This method is triggered when views.py is selected. It checks for models.py and handles prompt creation.
         """
         project_directory = self.app_gui.file_browser.root_dir
-        models_file = os.path.join(project_directory, "models.py")
+        models_file = os.path.join(project_directory, "backend/LabManagement/models.py")
 
         if not os.path.exists(models_file):
             messagebox.showerror("Error", "models.py not found in the project directory!")

@@ -29,8 +29,6 @@ class FileHandler:
             review_file.write(code)
 
     def run_and_test_code(self, error_handler):
-
-
         #try:
             #subprocess.run(["python3", review_file_path], check=True, capture_output=True)
             #messagebox.showinfo("Success", "Code ran successfully without errors!")

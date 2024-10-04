@@ -5,7 +5,7 @@ class OpenAIClient:
     def __init__(self):
         api_key = 'your-openai-api-key'  # Replace with your OpenAI API Key
 
-    def send_to_openai(self, prompt):
+    def send_to_openai(self, prompt,system_prompt):
         client = OpenAI()
 
         # Non-streaming:
@@ -14,6 +14,10 @@ class OpenAIClient:
         completion = client.chat.completions.create(
             model="gpt-4o",
             messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                },
                 {
                     "role": "user",
                     "content": prompt,

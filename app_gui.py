@@ -3,11 +3,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, font
 from file_handler import FileHandler
 from openai_client import OpenAIClient
-from error_handler import ErrorHandler
 from views_handler import ViewsHandler  # Import the new ViewsHandler
 from models_handler import ModelsHandler # Import the new ViewsHandler
-from urls_handler import URLHandler
-from html_handler import HTMLHandler
+from urls_handler import UrlsHandler
+from models_handler import ModelsHandler
 
 class AppGUI:
 
@@ -18,11 +17,10 @@ class AppGUI:
 
         self.file_handler = FileHandler(file_browser)
         self.openai_client = OpenAIClient()
-        self.error_handler = ErrorHandler(self)
         self.views_handler = ViewsHandler(self)  # Instantiate the ViewsHandler
         self.models_handler = ModelsHandler(self)  # Instantiate the ViewsHandler
-        self.urls_handler = URLHandler(self)
-        self.html_handler = HTMLHandler(self)
+        self.urls_handler = UrlsHandler(self)
+
 
         self.setup_fonts()
         self.setup_ui()
@@ -115,31 +113,25 @@ class AppGUI:
             self.file_listbox.insert(tk.END, file)
 
     def update_predefined_prompt(self):
+        """
+        Update the predefined prompt based on the currently selected file.
+        """
+        handlers = {
+            "models.py": self.models_handler.models_prompt,
+            "views.py": self.views_handler.views_prompt,
+            "urls.py": self.urls_handler.urls_prompt
+        }
 
-        # Check if the selected file is views.py
-        if self.current_selection == "views.py":
-            preprompt_text = self.views_handler.handle_views_file()
+        if self.current_selection in handlers:
+            prompt_func = handlers[self.current_selection]
+            prompt = prompt_func()
             
-        elif self.current_selection == "models.py":
-            preprompt_text = self.models_handler.handle_models_file()
-        elif self.current_selection == "urls.py":
-            preprompt_text = self.urls_handler.handle_urls_file()
-        elif self.current_selection.endswith(".html"):
-            preprompt_text = self.html_handler.handle_html_file()
+            preprompt_system = prompt[0]["content"]
+            preprompt_user = prompt[1]["content"]
+            preprompt_text = f"System:\n{preprompt_system}\n\n\nUser:\n{preprompt_user}"
+        else:
+            preprompt_text = "Not a valid file"
 
-        preprompt_text += "[Type the requirements in the following Input Area]"
-       # Check if the selected file has existing content
-        selected_file_path = os.path.join(self.file_browser.current_dir, self.current_selection)
-        if os.path.isfile(selected_file_path):
-            with open(selected_file_path, "r") as selected_file:
-                existing_code = selected_file.read().strip()
-
-            # If the file has existing code, append it to the prompt
-            if len(existing_code) > 20:
-                preprompt_text += f"\n\n\nPlease optimize this current code to realize my requirements:\n\n"
-                preprompt_text += f"---------------------Existing Code Snippet----------------------------\n"
-                preprompt_text += f"{existing_code}\n\n"
-                
         self.predefined_prompt.config(state="normal")
         self.predefined_prompt.delete(1.0, tk.END)
         self.predefined_prompt.insert(tk.END, preprompt_text)
@@ -160,83 +152,28 @@ class AppGUI:
             messagebox.showerror("Error", "No file selected!")
             return
 
-        # Initialize the prompt with the handler for the selected file
-        if self.current_selection == "views.py":
-            prompt_text = self.views_handler.handle_views_file()
-        elif self.current_selection == "models.py":
-            prompt_text = self.models_handler.handle_models_file()
-        elif self.current_selection == "urls.py":
-            prompt_text = self.urls_handler.handle_urls_file()
-        elif self.current_selection.endswith(".html"):
-            prompt_text = self.html_handler.handle_html_file()
-        else:
+        handlers = {
+            "models.py": (self.models_handler.models_prompt, self.models_handler.finalize_modelspy),
+            "views.py": (self.views_handler.views_prompt, self.views_handler.finalize_viewspy),
+            "urls.py": (self.urls_handler.urls_prompt, self.urls_handler.finalize_urlspy)
+        }
+
+        if self.current_selection not in handlers:
             messagebox.showerror("Error", "Unsupported file type!")
             return
 
-        # Append the input text to the prompt
-        prompt_text += input_text
+        prompt_func, finalize_func = handlers[self.current_selection]
+        prompt = prompt_func()
+        prompt += input_text
 
-        # Check if the selected file has existing content
-        selected_file_path = os.path.join(self.file_browser.current_dir, self.current_selection)
-        if os.path.isfile(selected_file_path):
-            with open(selected_file_path, "r") as selected_file:
-                existing_code = selected_file.read().strip()
-
-            # If the file has existing code, append it to the prompt
-            if len(existing_code) > 20:
-                prompt_text += f"\n\n# Please optimize this current code to realize my requirements:\n{existing_code}"
-
-        # Call OpenAI API and get the response with the modified prompt
-        code_response = self.openai_client.send_to_openai(prompt_text)
-
-        # Extract the appropriate code based on the file type
-        if self.current_selection.endswith(".py"):
-            try:
-                # Extract Python code
-                extracted_code = self.openai_client.extract_python_code(code_response)
-
-                # Create a test environment with the generated code
-                self.file_handler.create_review_environment(extracted_code,file_type="py")
-
-                # Run the generated code and handle errors
-                self.file_handler.run_and_test_code(self.error_handler)
-            except:
-                messagebox.showerror("Error", "No python code extracted from the response!")
-
-        elif self.current_selection.endswith(".html"):
-            try:
-                # Extract HTML code
-                extracted_code = self.openai_client.extract_html_code(code_response)
-                self.file_handler.create_review_environment(extracted_code,file_type="html")
-                self.file_handler.run_and_test_code(self.error_handler)
-            except:
-                messagebox.showerror("Error", "No html code extracted from the response!")
-
-            try:
-                html_file = self.current_selection
-                extracted_css_code = self.openai_client.extract_css_code(code_response)
-                self.file_handler.create_review_environment(extracted_css_code,file_type="css")
-                self.current_selection = os.path.join(self.file_browser.root_dir , "static/css/styles.css")
-                self.file_handler.run_and_test_code(self.error_handler)
-                self.current_selection = html_file
-            except:
-                messagebox.showerror("Error", "No CSS code extracted from the response! (No CSS code changes needed for this requirenment on html)")
-
-
-        elif self.current_selection.endswith(".css"):
-            try:
-                # Extract CSS code
-                extracted_code = self.openai_client.extract_css_code(code_response)
-
-                # Create a test environment with the generated code
-                self.file_handler.create_review_environment(extracted_code,file_type="css")
-
-                # Run the generated code and handle errors
-                self.file_handler.run_and_test_code(self.error_handler)
-            except:
-                messagebox.showerror("Error", "No python code extracted from the response!")
-
-        else:
-            messagebox.showerror("Error", "Unsupported file type for code extraction!")
+        try:
+            code_response = self.openai_client.send_to_openai(prompt)
+            extracted_code = self.openai_client.extract_code(code_response)
+            self.file_handler.create_review_environment(extracted_code)
+            finalize_func()
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {str(e)}")
             return
+            
+
 

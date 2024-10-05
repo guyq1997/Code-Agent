@@ -1,11 +1,20 @@
 from openai import OpenAI
+from pydantic import BaseModel
+import json
+from typing import List, Tuple
 
+class Response(BaseModel):
+    script_name: str
+    code: str
+
+class ResponseFormat(BaseModel):
+    generated_scripts: list[Response]
 
 class OpenAIClient:
     def __init__(self):
         api_key = 'your-openai-api-key'  # Replace with your OpenAI API Key
 
-    def send_to_openai(self, prompt,system_prompt):
+    def send_to_openai(self, prompt,format_class):
         client = OpenAI()
 
         # Non-streaming:
@@ -13,56 +22,42 @@ class OpenAIClient:
         print(prompt)
         completion = client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                },
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
-            ],
+            messages=[prompt],
+            response_format=ResponseFormat
         )
+
 
         return completion.choices[0].message.content
 
-    def extract_code(self, response, language="python"):
-        """
-        General method to extract code blocks of a specific language.
-        :param response: The OpenAI response containing the code block.
-        :param language: The code language or tag (e.g., 'python', 'html', 'css').
-        :return: Extracted code or empty string if no code block is found.
-        """
-        start_tag = f"```{language}"
-        end_tag = "```"
-        if start_tag not in response:
-            raise ValueError(f"No code block found for language: {language}")
-        if start_tag in response:
-            code = response.split(start_tag)[1].split(end_tag)[0]
-            return code.strip()
 
-
-    def extract_python_code(self, response):
+    def extract_code(response_content: str) -> List[Tuple[str, str]]:
         """
-        Extracts Python code block from the OpenAI response.
-        :param response: The OpenAI response containing the code block.
-        :return: Extracted Python code.
+        Extracts script names and corresponding code from an OpenAI API response.
+        Args:
+            response_content (str): A string containing the JSON response
+                                    from the OpenAI API.
+        Returns:
+            List[Tuple[str, str]]: A list of tuples, where each tuple contains
+                                two elements:
+                                - The script name (str)
+                                - The corresponding code (str)
+                                Returns an empty list if parsing fails or
+                                if the expected data is not found.
         """
-        return self.extract_code(response, "python")
-
-    def extract_html_code(self, response):
-        """
-        Extracts HTML code block from the OpenAI response.
-        :param response: The OpenAI response containing the code block.
-        :return: Extracted HTML code.
-        """
-        return self.extract_code(response, "html")
-
-    def extract_css_code(self, response):
-        """
-        Extracts CSS (style.css) code block from the OpenAI response.
-        :param response: The OpenAI response containing the code block.
-        :return: Extracted CSS code.
-        """
-        return self.extract_code(response, "css")
+        try:
+            # Parse the JSON response
+            response_data = json.loads(response_content)
+            
+            # Extract the generated scripts
+            generated_scripts = response_data.get('generated_scripts', [])
+            
+            # Create a list of tuples (script_name, code)
+            extracted_code = [(script['script_name'], script['code']) for script in generated_scripts]
+            
+            return extracted_code
+        except json.JSONDecodeError:
+            print("Error: Invalid JSON response")
+            return []
+        except KeyError as e:
+            print(f"Error: Missing key in response - {e}")
+            return []
